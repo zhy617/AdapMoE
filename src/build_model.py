@@ -60,6 +60,10 @@ def replace_attn_layers(
     quant_config: QuantConfig,
     device: torch.device,
 ) -> None:
+    """
+    Replace the attention layers in the model with quantized versions using the provided quantization configuration.
+    """
+    
     attn_quant_config = quant_config.attn_config
 
     hidden_size = config.hidden_size
@@ -80,6 +84,9 @@ def replace_attn_layers(
     }
 
     def patch_fct_hqq(shape, quant_config):
+        """
+        Create a HQQLinearTritonSavable layer with the given shape and quantization configuration.
+        """
         meta = shape_to_meta[shape]
         layer = HQQLinearTritonSavable(None, quant_config, meta=meta)
         return layer
@@ -181,6 +188,7 @@ def build_model(
         expert.load_state_dict(state_dict_00)
         return MixtralExpertWrapper(expert, device=device)
 
+    # 创建模型主体，不包含专家模块
     with device, with_default_dtype(torch.float16):
         model = MixtralForCausalLM(
             AutoConfig.from_pretrained(
@@ -197,18 +205,22 @@ def build_model(
     with open(state_index_path) as f:
         weight_map = json.load(f)["weight_map"]
 
+    
+    # Load trunk model weights
     trunk_state_path = os.path.join(
         state_path,
         weight_map["model.embed_tokens.weight"],
     )
     model.load_state_dict(load_file(trunk_state_path, device=str(device)), strict=True)
 
+    # construct cache space
     expert_cache = LinearCache(
         make_module=_make_module,
         main_size=offload_config.main_size,
         offload_size=offload_config.offload_size,
         buffer_size=offload_config.buffer_size,
     )
+
     for layer_idx in trange(model_config.num_hidden_layers, desc="Loading experts"):
         curr_layer = model.model.layers[layer_idx]
         curr_layer.block_sparse_moe = SparseMoeWrapper(

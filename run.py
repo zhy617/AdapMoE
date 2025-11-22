@@ -40,7 +40,7 @@ def main():
 
     # --- 2. 配置专家模型卸载 (Offloading) 和缓存策略 ---
 
-    # 从命令行参数获取主缓存大小
+    # 从命令行参数获取专家数量
     main_size = args.size
     # 根据主缓存大小和是否启用自适应门控，计算每层的缓存策略
     cache_strategy = get_cache_size(main_size,args.adapgate)

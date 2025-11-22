@@ -283,6 +283,8 @@ class SparseMoeWrapper(nn.Module):
         routing_weights = F.softmax(router_logits, dim=1, dtype=torch.float)
         routing_weights, selected_experts = torch.topk(routing_weights, self.top_k, dim=-1)
         routing_weights /= routing_weights.sum(dim=-1, keepdim=True)
+
+        # 动态 topk
         if hidden_states.shape[0]==1 and self.threshold>0:
             if routing_weights[0][1]<self.threshold:
                 routing_weights, selected_experts = torch.topk(routing_weights, 1, dim=-1)

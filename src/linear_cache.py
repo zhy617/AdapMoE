@@ -57,14 +57,23 @@ class EvictionGroupInfo:
 
 class LinearCache:
     def __init__(self, make_module: callable, main_size: int, offload_size: int, buffer_size: int):
-        """Dynamically loads an array of modules with identical hyperparameters"""
+        """
+        Dynamically loads an array of modules with identical hyperparameters
+        Params:
+            make_module: factory function
+            main_size: main cache size, number of Experts kept in GPU memory
+            offload_size: offload cache size, number of Experts kept in CPU memory
+            buffer_size: number of Experts kept in GPU memory for prefetching
+        """
         # self.module_type = self.module_size = self.device = None
         self.module_type = self.w1_size = self.w2_size = self.w3_size = self.device = None
         self.active = False
 
         self.registered_experts: Dict[ExpertUID, ExpertInfo] = dict()
 
+        # 初始化主缓存，包含 main_size 个专家模块，check 其一致性
         self.main_modules = [self._check_module(make_module()) for i in range(main_size)]
+
         self.main_infos: List[Optional[ExpertInfo]] = [None for _ in range(main_size)]
 
         # self.w1_main_modules = []
@@ -78,6 +87,7 @@ class LinearCache:
         #     self.w3_main_modules.append(w3)
 
         assert self.w1_size is not None
+        # 初始化卸载缓存，包含 offload_size 个专家存储
         self.w1_offloaded_storages = [
             torch.UntypedStorage(self.w1_size).pin_memory(self.device) for _ in range(offload_size)]
         self.w2_offloaded_storages = [
@@ -91,7 +101,7 @@ class LinearCache:
         self.info2buffer = {}
 
             
-        self.group_infos: Dict[int, EvictionGroupInfo] = defaultdict(EvictionGroupInfo)
+        self.group_infos: Dict[int, EvictionGroupInfo] = defaultdict(EvictionGroupInfo) ## TODO
 
         self.copy_stream = torch.cuda.Stream()
 
